@@ -5,37 +5,47 @@
     <meta charset="utf-8" />
   </head>
   <body>
-    <p>Ms. Naliboff's Awesome Waterfall Scheduler</p>
+    <h1>Waterfall Scheduler</h1>
 
     <!--Add buttons to initiate auth sequence and sign out-->
+    <p>Click "Authorize" to log into your Google Calendar Account. Click "Sign Out" when done.</p>
     <button id="authorize_button" style="display: none;">Authorize</button>
     <button id="signout_button" style="display: none;">Sign Out</button>
 
-    <label for="shared_calendar_field">Shared Calendar</label>
-    <select id="shared_calendar_field" name="shared_calendar_field" style="display: block;">
-      <option value=null>-- Select --</option>
-    </select>
+    <p>
+      To begin, schedule a single event on a waterfall day using Google Calendar.
+      Then, fill out the fields below.
+    </p>
 
-    <label for="day_match_field">Day Match</label>
-    <select id="day_match_field" name="day_match_field" type="text" style="display: block;">
-      <option value=null>-- Select --</option>
-    </select>
-
-    <label for="start_date_field">Start Date</label>
-    <select id="start_date_field" name="start_date_field" style="display: block;">
-      <option value=null>-- Select --</option>
-    </select>
-
-    <label for="end_date_field">End Date</label>
-    <select id="end_date_field" name="end_date_field" style="display: block;">
-      <option value=null>-- Select --</option>
-    </select>
-
-    <label for="event_match_field">Event Match</label>
-    <select id="event_match_field" name="event_match_field" type="text" style="display: block;">
-      <option value=null>-- Select --</option>
-    </select>
-
+    <p>
+      <label for="shared_calendar_field">Select a calendar with the waterfall day schedule</label>
+      <select id="shared_calendar_field" name="shared_calendar_field" style="display: block;">
+        <option value=null>-- Select --</option>
+      </select>
+    </p>
+    <p>
+      <label for="day_match_field">Select a day to schedule events on</label>
+      <select id="day_match_field" name="day_match_field" type="text" style="display: block;">
+        <option value=null>-- Select --</option>
+      </select>
+    </p>
+    <p>
+      <label for="start_date_field">Start Date</label>
+      <select id="start_date_field" name="start_date_field" style="display: block;">
+        <option value=null>-- Select --</option>
+      </select>
+      <label for="end_date_field">End Date</label>
+      <select id="end_date_field" name="end_date_field" style="display: block;">
+        <option value=null>-- Select --</option>
+      </select>
+    </p>
+    <p>
+      <label for="event_match_field">Select an event to duplicate</label>
+      <select id="event_match_field" name="event_match_field" type="text" style="display: block;">
+        <option value=null>-- Select --</option>
+      </select>
+    </p>
+    <p>Click "Run" to create the events listed below<p>
     <button id="run_button" style="display: none;">Run</button>
 
     <pre id="content" style="white-space: pre-wrap;"></pre>
@@ -153,6 +163,15 @@
         }
       }
 
+      function changeDate(dateString, dateTimeString) {
+        var date = dateString.split('-');
+        var dateTime = new Date(dateTimeString);
+        dateTime.setFullYear(date[0]);
+        dateTime.setMonth(date[1] - 1);
+        dateTime.setDate(date[2]);
+        return dateTime.toISOString();
+      }
+
       function listCalendars() {
         gapi.client.calendar.calendarList.list().then(function(response) {
           var calendars = response.result.items;
@@ -239,8 +258,8 @@
             option2.value = d;
             option2.text = d;
             endDateField.add(option2);
-
           });
+          endDateField.selectedIndex = endDateField.length - 1;
           var option = document.createElement('option');
           option.value = null;
           option.text = '-- select --';
@@ -254,7 +273,7 @@
                 var date = new Date(item.start.dateTime);
                 option = document.createElement('option');
                 option.value = item.id;
-                option.text = item.summary + ' - ' + date.toString();
+                option.text = item.summary + ' - ' + date.toLocaleString();
                 eventMatchField.add(option);
                 eventsToCopy[item.id] = item;
               }
@@ -278,7 +297,8 @@
           var dupe = eventToCopy.start.dateTime.startsWith(d);
           return rangeOk && !dupe;
         }).forEach(date => {
-          appendPre(date + ' - ' + eventToCopy.summary);
+          var newDate = new Date(changeDate(date, eventToCopy.start.dateTime));
+          appendPre(eventToCopy.summary + ' - ' + newDate.toLocaleString());
           finalDates.push(date)
         });
       }
@@ -295,8 +315,8 @@
           var newEvent = {
             summary: eventToCopy.summary,
             colorId: eventToCopy.colorId,
-            start: { dateTime: date + eventToCopy.start.dateTime.substring(10) },
-            end: { dateTime: date + eventToCopy.end.dateTime.substring(10) }
+            start: { dateTime: changeDate(date, eventToCopy.start.dateTime) },
+            end: { dateTime: changeDate(date, eventToCopy.end.dateTime) }
           };
 
           var request = gapi.client.calendar.events.insert({
@@ -306,7 +326,8 @@
 
           request.execute(function(myNewEvent) {
             if (myNewEvent.summary) {
-              appendPre('Created ' + myNewEvent.summary + ' on ' + date);
+              var newDate = new Date(myNewEvent.start.dateTime);
+              appendPre('Created ' + myNewEvent.summary + ' on ' + newDate.toLocaleString());
             } else {
               appendPre(newEvent.summary + myNewEvent.error);
             }
